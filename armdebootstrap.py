@@ -225,7 +225,8 @@ iface eth0 inet dhcp\
                  self.tmp.name)
 
         # Set up default root password
-        self.run("chroot %s echo 'root:toor' | chpasswd" % self.tmp.name)
+        self.run("echo 'echo root:toor | chpasswd' | chroot %s" %
+                 self.tmp.name)
 
         # Add APT sources
         self.writeFile('/etc/apt/sources.list', """\
