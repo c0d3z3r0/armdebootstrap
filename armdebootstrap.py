@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 __author__ = "Michael Niewöhner"
 
 import os
@@ -7,7 +5,6 @@ import sys
 import time
 import re
 import subprocess as su
-import argparse
 import colorama as co
 import tempfile as tm
 import operator
@@ -22,6 +19,7 @@ class ArmDeboostrap:
     hostname = str
     partitions = []
     packages = []
+    debug = False
 
 
     def __init__(self, name, hostname, sdcard, partitions, packages):
@@ -63,8 +61,10 @@ class ArmDeboostrap:
     def print_warn(self, warning):
         self.lprint(co.Fore.YELLOW + warning + co.Fore.RESET)
 
-
+    # TODO: better debugging
     def run(self, command, out=0, quit=1):
+        if self.debug:
+            print(co.Fore.YELLOW + "$: " + command + co.Fore.RESET)
         if out:
             ret = su.call(command, shell=True)
             success = not ret
@@ -100,38 +100,45 @@ class ArmDeboostrap:
         if missing:
             self.print_err("Missing dependencies: %s" % ', '.join(missing))
 
-
+    # TODO: change fdisk to sfdisk or parted
     def createparts(self):
         self.lprint("Delete MBR and partition table and create a new one.")
         cmds = ['o']
         for p in self.partitions:
-            cmds += ['n', 'p', '', p['start'], p['end'], 't', p['type']]
+            num = self.partitions.index(p)+1
+            if num > 1:
+                cmds += ['n', 'p', '', p['start'], p['end'], 't', str(num),
+                         p['type']]
+            else:
+                cmds += ['n', 'p', '', p['start'], p['end'], 't', p['type']]
         cmds += 'w'
         cmds = ('echo ' + '; echo '.join(cmds))
-        self.run("umount -f %s*" % self.sdcard)
+        self.run("umount -f %s*" % self.sdcard, quit=0)
         self.run('(' + cmds + ') | fdisk %s' % self.sdcard)
+        time.sleep(3)  # wait for the system to detect the new partitions
 
 
     def formatparts(self):
         self.lprint("Create filesystems.")
         for p in self.partitions:
             if 'ext' in p['fs']:
-                self.run("mkfs.%s -F %s%s" % str(p['fs']+1), self.sdcard,
-                         self.partitions.index(p))
+                self.run("mkfs.%s -F %s%s" % (str(p['fs']), self.sdcard,
+                         str(self.partitions.index(p)+1)))
             elif p['fs'] == 'msdos':
-                self.run("mkfs.msdos -F %s%s" % self.sdcard,
-                         self.partitions.index(p))
+                self.run("mkfs.msdos %s%s" % (self.sdcard,
+                         str(self.partitions.index(p)+1)))
 
 
     def mountparts(self):
         self.lprint("Mount filesystems.")
         for p in sorted(self.partitions, key=operator.itemgetter('mount')):
-            if p['mount']:
-                if not os.path.isdir(p['mount']):
-                    os.mkdir(p['mount'], 755)
-                self.run("mount %s%s %s%s" %
-                         (self.sdcard, self.partitions.index(p),
-                          self.tmp.name, p['mount']))
+            if p['mount']:  # not swap
+                mnt = self.tmp.name + p['mount']
+                if not os.path.isdir(mnt):
+                    os.mkdir(mnt, 755)
+                self.run("mount %s%s %s" %
+                         (self.sdcard, str(self.partitions.index(p)+1), mnt))
+
 
     def debootstrap(self):
         self.lprint("Install debian. First stage. "
@@ -149,6 +156,7 @@ class ArmDeboostrap:
                  self.tmp.name, out=1)
 
 
+    # TODO: more intelligent unmounting
     def cleanup(self):
         self.lprint("Unmount and cleanup.")
         #' '.join(sorted(self.partitions, key=operator.itemgetter('mount'),
@@ -156,7 +164,7 @@ class ArmDeboostrap:
         self.run("fuser -k %s" % self.tmp.name)
         #self.run("umount %s*" % self.sdcard, quit=0)
         self.run("umount -R %s" % self.tmp.name, quit=0)
-        self.run("umount -fR %s" % self.tmp.name)
+        self.run("umount -fR %s" % self.tmp.name, quit=0)
         self.tmp.cleanup()
         self.lprint(co.Fore.GREEN +
                     "OK, that's it. Put the sdcard into your device and power "
@@ -173,15 +181,24 @@ class ArmDeboostrap:
     def configure(self):
         self.lprint("Configure the system.")
 
-        # Replace by loop
+        # TODO: make more beautiful with string mask (spaces)
         # fstab
-        self.writeFile('/etc/fstab', """\
-proc            /proc           proc    defaults          0       0
-/dev/mmcblk0p1  /boot           vfat    defaults          0       2
-/dev/mmcblk0p2  /               ext4    defaults,noatime  0       1
-# a swapfile is not a swap partition, so no using swapon|off from here on,
-# use  dphys-swapfile swap[on|off]  for that\
-        """)
+        self.writeFile('/etc/fstab', "proc /proc proc defaults 0 0")
+
+        parts = sorted(self.partitions, key=operator.itemgetter('mount'))
+        for p in parts:
+            if p['fs'] == 'msdos':
+                fs = 'vfat'
+            else:
+                fs = p['fs']
+            if 'ext' in p['fs']:
+                opt = 'defaults,noatime'
+            else:
+                opt = 'defaults'
+            self.writeFile('/etc/fstab', "/dev/mmcblk0p%s %s %s %s 0 %s" %
+                           (str(self.partitions.index(p)+1), p['mount'], fs,
+                            opt, str(parts.index(p)+1)), append=True)
+
 
         # Configure networking
         self.writeFile('/etc/network/interfaces', """\
