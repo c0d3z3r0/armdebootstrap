@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+
+__author__ = "Michael Niewöhner"
+
+import os
+import sys
+import time
+import re
+import subprocess as su
+import argparse
+import colorama as co
+import tempfile as tm
+import operator
+import shutil as sh
+
+
+class ArmDeboostrap:
+    sdcard = str
+    tmp = tm.TemporaryDirectory
+    name = str
+    tools = []
+    hostname = str
+    partitions = []
+    packages = []
+
+
+    def __init__(self, name, hostname, sdcard, partitions, packages):
+        self.name = name
+        self.hostname = hostname
+        self.sdcard = sdcard
+        self.partitions = partitions
+
+        # Standard packages and additional packages
+        self.packages = packages + \
+            ["aptitude", "apt-transport-https", "openssh-server",
+             "cpufrequtils", "cpufreqd", "ntp", "fake-hwclock", "tzdata",
+             "locales", "console-setup", "console-data", "vim", "psmisc",
+             "keyboard-configuration", "ca-certificates", "dbus"
+             ]
+
+
+    def logwrite(self, text):
+        log = open(self.name + ".log", "a")
+        log.write(text + "\n")
+        log.close()
+
+
+    def lprint(self, p):
+        print(p)
+        self.logwrite(p)
+
+
+    def print_err(self, error):
+        self.lprint(co.Fore.RED + """\
+    ***********************************************
+    * Error! Please check the following messages! *
+    *         Your system will NOT boot!          *
+    ***********************************************
+
+    """ + error + "\n")
+
+
+    def print_warn(self, warning):
+        self.lprint(co.Fore.YELLOW + warning + co.Fore.RESET)
+
+
+    def run(self, command, out=0, quit=1):
+        if out:
+            ret = su.call(command, shell=True)
+            success = not ret
+            error = "Unknown error."
+        else:
+            ret = su.getstatusoutput(command)
+            success = not ret[0]
+            error = ret[1]
+            self.logwrite(error + "\n")
+
+        if quit and not success:
+            self.print_err(error)
+            try:
+                sys.exit(1)
+            except OSError:
+                pass
+        else:
+            return success
+
+
+    def checkdep(self):
+        tools = [("mkfs.msdos", "dosfstools"),
+                 ("cdebootstrap", "cdebootstrap"),
+                 ("curl", "curl"),
+                 ("fdisk", "fdisk"),
+                 ("sed", "sed"),
+                 ("qemu-arm-static", "qemu-arm-static"),
+                 ("fuser", "psmisc"),
+                 ]
+        missing = []
+        for t in tools:
+            self.run("which %s" % t[0], quit=0) or missing.append(t[1])
+        if missing:
+            self.print_err("Missing dependencies: %s" % ', '.join(missing))
+
+
+    def createparts(self):
+        self.lprint("Delete MBR and partition table and create a new one.")
+        cmds = ['o']
+        for p in self.partitions:
+            cmds += ['n', 'p', '', p['start'], p['end'], 't', p['type']]
+        cmds += 'w'
+        cmds = ('echo ' + '; echo '.join(cmds))
+        self.run("umount -f %s*" % self.sdcard)
+        self.run('(' + cmds + ') | fdisk %s' % self.sdcard)
+
+
+    def formatparts(self):
+        self.lprint("Create filesystems.")
+        for p in self.partitions:
+            if 'ext' in p['fs']:
+                self.run("mkfs.%s -F %s%s" % str(p['fs']+1), self.sdcard,
+                         self.partitions.index(p))
+            elif p['fs'] == 'msdos':
+                self.run("mkfs.msdos -F %s%s" % self.sdcard,
+                         self.partitions.index(p))
+
+
+    def mountparts(self):
+        self.lprint("Mount filesystems.")
+        for p in sorted(self.partitions, key=operator.itemgetter('mount')):
+            if p['mount']:
+                if not os.path.isdir(p['mount']):
+                    os.mkdir(p['mount'], 755)
+                self.run("mount %s%s %s%s" %
+                         (self.sdcard, self.partitions.index(p),
+                          self.tmp.name, p['mount']))
+
+    def debootstrap(self):
+        self.lprint("Install debian. First stage. "
+                    "This will take some minutes.")
+        self.run("cdebootstrap --arch=armhf -f standard --foreign jessie "
+                 "--include=%s %s" % (','.join(self.packages), self.tmp.name))
+
+        self.lprint("Second stage. Again, please wait some minutes.")
+        self.print_warn("You can safely ignore the perl and locale warnings.")
+        sh.copy2("/usr/bin/qemu-arm-static", "%s/usr/bin/qemu-arm-static" %
+                 self.tmp.name)
+        self.run("chroot %s /sbin/cdebootstrap-foreign" % self.tmp.name)
+        self.run("chroot %s dpkg-reconfigure locales console-setup "
+                 "console-data keyboard-configuration tzdata" %
+                 self.tmp.name, out=1)
+
+
+    def cleanup(self):
+        self.lprint("Unmount and cleanup.")
+        #' '.join(sorted(self.partitions, key=operator.itemgetter('mount'),
+        #                reverse=True))
+        self.run("fuser -k %s" % self.tmp.name)
+        #self.run("umount %s*" % self.sdcard, quit=0)
+        self.run("umount -R %s" % self.tmp.name, quit=0)
+        self.run("umount -fR %s" % self.tmp.name)
+        self.tmp.cleanup()
+        self.lprint(co.Fore.GREEN +
+                    "OK, that's it. Put the sdcard into your device and power "
+                    "it up.\nThe root password is 'toor'." + co.Fore.RESET)
+
+
+    def writeFile(self, file, content, append=False):
+        f = open("%s%s" % (self.tmp.name, file),
+                 {True: 'a', False: 'w'}[append])
+        print(content, file=f)
+        f.close()
+
+
+    def configure(self):
+        self.lprint("Configure the system.")
+
+        # Replace by loop
+        # fstab
+        self.writeFile('/etc/fstab', """\
+proc            /proc           proc    defaults          0       0
+/dev/mmcblk0p1  /boot           vfat    defaults          0       2
+/dev/mmcblk0p2  /               ext4    defaults,noatime  0       1
+# a swapfile is not a swap partition, so no using swapon|off from here on,
+# use  dphys-swapfile swap[on|off]  for that\
+        """)
+
+        # Configure networking
+        self.writeFile('/etc/network/interfaces', """\
+auto eth0
+iface eth0 inet dhcp\
+        """)
+
+        # Set Hostname
+        self.writeFile('/etc/hostname', self.hostname)
+
+        # Change DHCP timeout because we get stuck at boot if
+        # there is no network
+        self.run("sed -i'' 's/#timeout.*;/timeout 10;/' "
+                 "%s/etc/dhcp/dhclient.conf" % self.tmp.name)
+
+        # Enable SSH PasswordAuthentication and root login
+        self.run("sed -i'' 's/without-password/yes/' %s/etc/ssh/sshd_config" %
+                 self.tmp.name)
+        self.run("sed -i'' 's/#PasswordAuth/PasswordAuth/' "
+                 "%s/etc/ssh/sshd_config" % self.tmp.name)
+
+        # Fix missing display-manager.service
+        self.run("chroot %s systemctl disable display-manager.service" %
+                 self.tmp.name)
+
+        # Set up default root password
+        self.run("chroot %s echo 'root:toor' | chpasswd" % self.tmp.name)
+
+        # Add APT sources
+        self.writeFile('/etc/apt/sources.list', """\
+deb http://ftp.de.debian.org/debian/ jessie main contrib non-free
+deb-src http://ftp.de.debian.org/debian/ jessie main contrib non-free
+
+deb http://security.debian.org/ jessie/updates main contrib non-free
+deb-src http://security.debian.org/ jessie/updates main contrib non-free
+
+deb http://ftp.de.debian.org/debian jessie-updates main contrib non-free
+deb-src http://ftp.de.debian.org/debian jessie-updates main contrib non-free
+
+deb http://ftp.de.debian.org/debian jessie-proposed-updates main contrib non-free
+deb-src http://ftp.de.debian.org/debian jessie-proposed-updates main contrib non-free
+
+deb http://ftp.debian.org/debian/ jessie-backports main contrib non-free
+deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free
+
+deb http://archive.raspberrypi.org/debian wheezy main
+deb-src http://archive.raspberrypi.org/debian wheezy main\
+        """)
+
+        # APT settings
+        self.writeFile('/etc/apt/apt.conf.d/01debian', """\
+APT::Default-Release "jessie";
+aptitude::UI::Package-Display-Format "%c%a%M%S %p %Z %v %V %t";\
+        """)
+
+        # APT pinning
+        self.writeFile('/etc/apt/preferences.d/aptpinning', """\
+Package: *
+Pin: release n=jessie-backports
+Pin-Priority: 100
+
+Package: *
+Pin: origin archive.raspberrypi.org
+Pin-Priority: 100\
+        """)
+
+
+    def update(self):
+        # Update & Upgrade
+        self.lprint("Update the system.")
+        self.run("chroot %s apt-key adv --fetch-keys "
+                 "http://archive.raspberrypi.org/debian/raspberrypi.gpg.key" %
+                 self.tmp.name)
+        self.run("chroot %s aptitude -y update" % self.tmp.name)
+        self.run("chroot %s aptitude -y upgrade" % self.tmp.name)
+
+
+    def install(self):
+        self.createparts()
+        self.formatparts()
+        self.mountparts()
+        self.debootstrap()
+        self.configure()
+        self.update()
+
+
+    def init(self):
+        co.init()
+        self.logwrite("\n\n" + time.strftime("%c"))
+
+        self.lprint("Welcome to " + self.name + "!")
+
+        if os.geteuid():
+            self.print_err("You need to run this as root!")
+            sys.exit(1)
+
+        if not re.match("^/dev/[a-zA-Z]+$", self.sdcard):
+            self.print_err("Wrong sdcard format! Should be /dev/sdX.")
+            sys.exit(1)
+
+        if not os.path.exists(self.sdcard):
+            self.print_err("SD card path does not exist.")
+            sys.exit(1)
+
+        self.lprint(co.Fore.RED + "This is your last chance to abort!" +
+                    co.Fore.RESET)
+        self.print_warn("Your sdcard is %s. Is that right? [yN] "
+                        % self.sdcard)
+        if input() is not "y":
+            self.lprint("OK. Aborting ...")
+            sys.exit(0)
+
+        self.tmp = tm.TemporaryDirectory()
