@@ -31,7 +31,7 @@ class ArmDeboostrap:
         # Standard packages and additional packages
         self.packages = packages + \
             ["aptitude", "apt-transport-https", "openssh-server",
-             "cpufrequtils", "cpufreqd", "ntp", "fake-hwclock", "tzdata",
+             "cpufrequtils", "cpufreqd", "ntp", "tzdata",
              "locales", "console-setup", "console-data", "vim", "psmisc",
              "keyboard-configuration", "ca-certificates", "dbus"
              ]
