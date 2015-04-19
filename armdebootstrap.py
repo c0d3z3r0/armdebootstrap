@@ -61,14 +61,13 @@ class ArmDeboostrap:
     def print_warn(self, warning):
         self.lprint(co.Fore.YELLOW + warning + co.Fore.RESET)
 
-    # TODO: better debugging
     def run(self, command, out=0, quit=1):
         if self.debug:
             print(co.Fore.YELLOW + "$: " + command + co.Fore.RESET)
         if out:
-            ret = su.call(command, shell=True)
+            ret = su.Popen(command, shell=True, stderr=su.PIPE)
             success = not ret
-            error = "Unknown error."
+            error = ret.stderr.read().decode()
         else:
             ret = su.getstatusoutput(command)
             success = not ret[0]
@@ -156,13 +155,9 @@ class ArmDeboostrap:
                  self.tmp.name, out=1)
 
 
-    # TODO: more intelligent unmounting
     def cleanup(self):
         self.lprint("Unmount and cleanup.")
-        #' '.join(sorted(self.partitions, key=operator.itemgetter('mount'),
-        #                reverse=True))
-        self.run("fuser -k %s" % self.tmp.name)
-        #self.run("umount %s*" % self.sdcard, quit=0)
+        self.run("fuser -k %s" % self.tmp.name, quit=0)
         self.run("umount -R %s" % self.tmp.name, quit=0)
         self.run("umount -fR %s" % self.tmp.name, quit=0)
         self.tmp.cleanup()
