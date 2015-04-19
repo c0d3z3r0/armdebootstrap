@@ -66,7 +66,7 @@ class ArmDeboostrap:
             print(co.Fore.YELLOW + "$: " + command + co.Fore.RESET)
         if out:
             ret = su.Popen(command, shell=True, stderr=su.PIPE)
-            success = not ret
+            success = not ret.wait()
             error = ret.stderr.read().decode()
         else:
             ret = su.getstatusoutput(command)
