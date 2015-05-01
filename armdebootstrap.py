@@ -50,12 +50,12 @@ class ArmDeboostrap:
 
     def print_err(self, error):
         self.lprint(co.Fore.RED + """\
-    ***********************************************
-    * Error! Please check the following messages! *
-    *         Your system will NOT boot!          *
-    ***********************************************
+***********************************************
+* Error! Please check the following messages! *
+*         Your system will NOT boot!          *
+***********************************************
 
-    """ + error + "\n")
+""" + error + "\n")
 
 
     def print_warn(self, warning):
@@ -90,14 +90,18 @@ class ArmDeboostrap:
                  ("curl", "curl"),
                  ("fdisk", "fdisk"),
                  ("sed", "sed"),
-                 ("qemu-arm-static", "qemu-arm-static"),
+                 ("qemu-arm-static", "qemu-user-static"),
                  ("fuser", "psmisc"),
                  ]
         missing = []
         for t in tools:
             self.run("which %s" % t[0], quit=0) or missing.append(t[1])
         if missing:
-            self.print_err("Missing dependencies: %s" % ', '.join(missing))
+            self.print_err("Missing dependencies: %s.\n"
+                           "Install them using `aptitude install %s`."
+                           % (', '.join(missing), ' '.join(missing)))
+            sys.exit(1)
+
 
     # TODO: change fdisk to sfdisk or parted
     def createparts(self):
@@ -290,6 +294,8 @@ Pin-Priority: 100\
         if os.geteuid():
             self.print_err("You need to run this as root!")
             sys.exit(1)
+
+        self.checkdep()
 
         if not re.match("^/dev/[a-zA-Z]+$", self.sdcard):
             self.print_err("Wrong sdcard format! Should be /dev/sdX.")
