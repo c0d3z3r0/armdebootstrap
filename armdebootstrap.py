@@ -1,4 +1,5 @@
-__author__ = "Michael Niewöhner"
+__author__ = 'Michael Niewöhner <c0d3z3r0>'
+__email__ = 'mniewoeh@stud.hs-offenburg.de'
 
 import os
 import sys
