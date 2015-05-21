@@ -104,6 +104,13 @@ class ArmDeboostrap:
             sys.exit(1)
 
 
+    def partition(self, p):
+        if re.match("^/dev/mmcblk[0-9]+$", self.sdcard):
+            return "p" + str(self.partitions.index(p)+1)
+        else:
+            return str(self.partitions.index(p)+1)
+
+
     # TODO: change fdisk to sfdisk or parted
     def createparts(self):
         self.lprint("Delete MBR and partition table and create a new one.")
@@ -127,10 +134,9 @@ class ArmDeboostrap:
         for p in self.partitions:
             if 'ext' in p['fs']:
                 self.run("mkfs.%s -F %s%s" % (str(p['fs']), self.sdcard,
-                         str(self.partitions.index(p)+1)))
+                         self.partition(p)))
             elif p['fs'] == 'msdos':
-                self.run("mkfs.msdos %s%s" % (self.sdcard,
-                         str(self.partitions.index(p)+1)))
+                self.run("mkfs.msdos %s%s" % (self.sdcard, self.partition(p)))
 
 
     def mountparts(self):
@@ -141,7 +147,7 @@ class ArmDeboostrap:
                 if not os.path.isdir(mnt):
                     os.mkdir(mnt, 755)
                 self.run("mount %s%s %s" %
-                         (self.sdcard, str(self.partitions.index(p)+1), mnt))
+                         (self.sdcard, self.partition(p), mnt))
 
 
     def debootstrap(self):
@@ -298,8 +304,10 @@ Pin-Priority: 100\
 
         self.checkdep()
 
-        if not re.match("^/dev/[a-zA-Z]+$", self.sdcard):
-            self.print_err("Wrong sdcard format! Should be /dev/sdX.")
+        if not re.match("^/dev/((h|s)d[a-z]+|mmcblk[0-9]+)$", self.sdcard):
+            self.print_err("Wrong sdcard format! Should be in the form"
+                           "/dev/[hdX|sdX|mmcblkX] eg. /dev/sda or"
+                           "/dev/mmcblk0")
             sys.exit(1)
 
         if not os.path.exists(self.sdcard):
