@@ -14,7 +14,7 @@ import shutil as sh
 
 class ArmDeboostrap:
     sdcard = str
-    tmp = tm.TemporaryDirectory
+    tmp = str
     name = str
     tools = []
     hostname = str
@@ -143,7 +143,7 @@ class ArmDeboostrap:
         self.lprint("Mount filesystems.")
         for p in sorted(self.partitions, key=operator.itemgetter('mount')):
             if p['mount']:  # not swap
-                mnt = self.tmp.name + p['mount']
+                mnt = self.tmp + p['mount']
                 if not os.path.isdir(mnt):
                     os.mkdir(mnt, 755)
                 self.run("mount %s%s %s" %
@@ -154,16 +154,16 @@ class ArmDeboostrap:
         self.lprint("Install debian. First stage. "
                     "This will take some minutes.")
         self.run("cdebootstrap --arch=armhf -f standard --foreign jessie "
-                 "--include=%s %s" % (','.join(self.packages), self.tmp.name))
+                 "--include=%s %s" % (','.join(self.packages), self.tmp))
 
         self.lprint("Second stage. Again, please wait some minutes.")
         self.print_warn("You can safely ignore the perl and locale warnings.")
         sh.copy2("/usr/bin/qemu-arm-static", "%s/usr/bin/qemu-arm-static" %
-                 self.tmp.name)
-        self.run("chroot %s /sbin/cdebootstrap-foreign" % self.tmp.name)
+                 self.tmp)
+        self.run("chroot %s /sbin/cdebootstrap-foreign" % self.tmp)
         self.run("chroot %s dpkg-reconfigure locales console-setup "
                  "console-data keyboard-configuration tzdata" %
-                 self.tmp.name, out=1)
+                 self.tmp, out=1)
 
 
     def cleanup(self):
@@ -178,7 +178,7 @@ class ArmDeboostrap:
 
 
     def writeFile(self, file, content, append=False):
-        f = open("%s%s" % (self.tmp.name, file),
+        f = open("%s%s" % (self.tmp, file),
                  {True: 'a', False: 'w'}[append])
         print(content, file=f)
         f.close()
@@ -218,21 +218,21 @@ iface eth0 inet dhcp\
         # Change DHCP timeout because we get stuck at boot if
         # there is no network
         self.run("sed -i'' 's/#timeout.*;/timeout 10;/' "
-                 "%s/etc/dhcp/dhclient.conf" % self.tmp.name)
+                 "%s/etc/dhcp/dhclient.conf" % self.tmp)
 
         # Enable SSH PasswordAuthentication and root login
         self.run("sed -i'' 's/without-password/yes/' %s/etc/ssh/sshd_config" %
-                 self.tmp.name)
+                 self.tmp)
         self.run("sed -i'' 's/#PasswordAuth/PasswordAuth/' "
-                 "%s/etc/ssh/sshd_config" % self.tmp.name)
+                 "%s/etc/ssh/sshd_config" % self.tmp)
 
         # Fix missing display-manager.service
         self.run("chroot %s systemctl disable display-manager.service" %
-                 self.tmp.name)
+                 self.tmp)
 
         # Set up default root password
         self.run("echo 'echo root:toor | chpasswd' | chroot %s" %
-                 self.tmp.name)
+                 self.tmp)
 
         # Add APT sources
         self.writeFile('/etc/apt/sources.list', """\
@@ -278,9 +278,9 @@ Pin-Priority: 100\
         self.lprint("Update the system.")
         self.run("chroot %s apt-key adv --fetch-keys "
                  "http://archive.raspberrypi.org/debian/raspberrypi.gpg.key" %
-                 self.tmp.name)
-        self.run("chroot %s aptitude -y update" % self.tmp.name)
-        self.run("chroot %s aptitude -y upgrade" % self.tmp.name)
+                 self.tmp)
+        self.run("chroot %s aptitude -y update" % self.tmp)
+        self.run("chroot %s aptitude -y upgrade" % self.tmp)
 
 
     def install(self):
@@ -322,4 +322,4 @@ Pin-Priority: 100\
             self.lprint("OK. Aborting ...")
             sys.exit(0)
 
-        self.tmp = tm.TemporaryDirectory()
+        self.tmp = tm.mkdtemp()
