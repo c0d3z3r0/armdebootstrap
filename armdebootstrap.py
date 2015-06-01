@@ -150,6 +150,14 @@ class ArmDeboostrap:
                          (self.sdcard, self.partition(p), mnt))
 
 
+    def unmountparts(self):
+        for p in sorted(self.partitions, key=operator.itemgetter('mount'),
+                        reverse=True):
+            if p['mount']:  # not swap
+                mnt = self.tmp + p['mount']
+                self.run("umount -f %s%s" % (self.sdcard, self.partition(p)))
+
+
     def debootstrap(self):
         self.lprint("Install debian. First stage. "
                     "This will take some minutes.")
@@ -168,10 +176,9 @@ class ArmDeboostrap:
 
     def cleanup(self):
         self.lprint("Unmount and cleanup.")
-        self.run("fuser -k %s" % self.tmp.name, quit=0)
-        self.run("umount -R %s" % self.tmp.name, quit=0)
-        self.run("umount -fR %s" % self.tmp.name, quit=0)
-        self.tmp.cleanup()
+        self.run("fuser -k %s" % self.tmp, quit=0)
+        self.unmountparts()
+        os.rmdir(self.tmp)
         self.lprint(co.Fore.GREEN +
                     "OK, that's it. Put the sdcard into your device and power "
                     "it up.\nThe root password is 'toor'." + co.Fore.RESET)
