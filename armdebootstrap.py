@@ -221,6 +221,7 @@ iface eth0 inet dhcp\
 
         # Set Hostname
         self.writeFile('/etc/hostname', self.hostname)
+        self.writeFile('/etc/hosts', '127.0.0.1 ' + self.hostname, append=True)
 
         # Change DHCP timeout because we get stuck at boot if
         # there is no network
