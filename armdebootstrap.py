@@ -257,36 +257,13 @@ deb http://ftp.de.debian.org/debian jessie-proposed-updates main contrib non-fre
 deb-src http://ftp.de.debian.org/debian jessie-proposed-updates main contrib non-free
 
 deb http://ftp.debian.org/debian/ jessie-backports main contrib non-free
-deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free
-
-deb http://archive.raspberrypi.org/debian wheezy main
-deb-src http://archive.raspberrypi.org/debian wheezy main\
-        """)
-
-        # APT settings
-        self.writeFile('/etc/apt/apt.conf.d/01debian', """\
-APT::Default-Release "jessie";
-aptitude::UI::Package-Display-Format "%c%a%M%S %p %Z %v %V %t";\
-        """)
-
-        # APT pinning
-        self.writeFile('/etc/apt/preferences.d/aptpinning', """\
-Package: *
-Pin: release n=jessie-backports
-Pin-Priority: 100
-
-Package: *
-Pin: origin archive.raspberrypi.org
-Pin-Priority: 100\
+deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
         """)
 
 
     def update(self):
         # Update & Upgrade
         self.lprint("Update the system.")
-        self.run("chroot %s apt-key adv --fetch-keys "
-                 "http://archive.raspberrypi.org/debian/raspberrypi.gpg.key" %
-                 self.tmp)
         self.run("chroot %s aptitude -y update" % self.tmp)
         self.run("chroot %s aptitude -y upgrade" % self.tmp)
 
