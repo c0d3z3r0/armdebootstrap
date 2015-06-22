@@ -23,11 +23,12 @@ class ArmDeboostrap:
     debug = False
 
 
-    def __init__(self, name, hostname, sdcard, partitions, packages):
+    def __init__(self, name, hostname, sdcard, partitions, packages, rootpass='toor'):
         self.name = name
         self.hostname = hostname
         self.sdcard = sdcard
         self.partitions = partitions
+        self.rootpass = rootpass
 
         # Standard packages and additional packages
         self.packages = packages + \
@@ -239,8 +240,8 @@ iface eth0 inet dhcp\
                  self.tmp)
 
         # Set up default root password
-        self.run("echo 'echo root:toor | chpasswd' | chroot %s" %
-                 self.tmp)
+        self.run("echo 'echo root:%s | chpasswd' | chroot %s" %
+                 self.rootpass, self.tmp)
 
         # Add APT sources
         self.writeFile('/etc/apt/sources.list', """\
