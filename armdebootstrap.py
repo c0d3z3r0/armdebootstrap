@@ -23,12 +23,14 @@ class ArmDeboostrap:
     debug = False
 
 
-    def __init__(self, name, hostname, sdcard, partitions, packages, rootpass='toor'):
+    def __init__(self, name, hostname, sdcard, partitions, packages,
+                 rootpass='toor', debug=False):
         self.name = name
         self.hostname = hostname
         self.sdcard = sdcard
         self.partitions = partitions
         self.rootpass = rootpass
+        self.debug = debug
 
         # Standard packages and additional packages
         self.packages = packages + \
