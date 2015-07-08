@@ -243,7 +243,7 @@ iface eth0 inet dhcp\
 
         # Set up default root password
         self.run("echo 'echo root:%s | chpasswd' | chroot %s" %
-                 self.rootpass, self.tmp)
+                 (self.rootpass, self.tmp))
 
         # Add APT sources
         self.writeFile('/etc/apt/sources.list', """\
