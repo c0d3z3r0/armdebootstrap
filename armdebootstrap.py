@@ -306,7 +306,7 @@ deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
                     co.Fore.RESET)
         self.print_warn("Your sdcard is %s. Is that right? [yN] "
                         % self.sdcard)
-        if input() is not "y":
+        if input().lower() not in ["y", "yes"]:
             self.lprint("OK. Aborting ...")
             sys.exit(0)
 
