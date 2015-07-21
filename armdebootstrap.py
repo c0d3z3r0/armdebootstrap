@@ -10,6 +10,7 @@ import colorama as co
 import tempfile as tm
 import operator
 import shutil as sh
+import getpass
 
 
 class ArmDeboostrap:
@@ -24,12 +25,11 @@ class ArmDeboostrap:
 
 
     def __init__(self, name, hostname, sdcard, partitions, packages,
-                 rootpass='toor', debug=False):
+                 debug=False):
         self.name = name
         self.hostname = hostname
         self.sdcard = sdcard
         self.partitions = partitions
-        self.rootpass = rootpass
         self.debug = debug
 
         # Standard packages and additional packages
@@ -242,6 +242,12 @@ iface eth0 inet dhcp\
                  self.tmp)
 
         # Set up default root password
+        while True:
+            rootpass = getpass.getpass("Enter rpi root password: ")
+            if rootpass == getpass.getpass("Repeat: "):
+                break
+            print("Passwords do not match. Try again.")
+
         self.run("echo 'echo root:%s | chpasswd' | chroot %s" %
                  (self.rootpass, self.tmp))
 
