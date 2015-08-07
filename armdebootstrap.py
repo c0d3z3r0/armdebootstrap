@@ -249,7 +249,7 @@ iface eth0 inet dhcp\
             print("Passwords do not match. Try again.")
 
         self.run("echo 'echo root:%s | chpasswd' | chroot %s" %
-                 (self.rootpass, self.tmp))
+                 (rootpass, self.tmp))
 
         # Add APT sources
         self.writeFile('/etc/apt/sources.list', """\
