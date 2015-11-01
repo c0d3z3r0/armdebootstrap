@@ -38,6 +38,7 @@ class ArmDeboostrap:
              "cpufrequtils", "cpufreqd", "ntp", "tzdata", "htop",
              "locales", "console-setup", "console-data", "vim", "psmisc",
              "keyboard-configuration", "ca-certificates", "dbus", "curl"
+             "wireless-tools", "wpasupplicant"
              ]
 
 
