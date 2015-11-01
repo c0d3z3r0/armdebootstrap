@@ -37,8 +37,8 @@ class ArmDeboostrap:
             ["aptitude", "apt-transport-https", "openssh-server",
              "cpufrequtils", "cpufreqd", "ntp", "tzdata", "htop",
              "locales", "console-setup", "console-data", "vim", "psmisc",
-             "keyboard-configuration", "ca-certificates", "dbus", "curl"
-             "wireless-tools", "wpasupplicant"
+             "keyboard-configuration", "ca-certificates", "dbus", "curl",
+             "iw", "wireless-tools", "wpasupplicant"
              ]
 
 
