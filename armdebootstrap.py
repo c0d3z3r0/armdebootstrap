@@ -35,7 +35,7 @@ class ArmDeboostrap:
         # Standard packages and additional packages
         self.packages = packages + \
             ["aptitude", "apt-transport-https", "openssh-server",
-             "cpufrequtils", "cpufreqd", "ntp", "tzdata", "htop",
+             "cpufrequtils", "cpufreqd", "tzdata", "htop",
              "locales", "console-setup", "console-data", "vim", "psmisc",
              "keyboard-configuration", "ca-certificates", "dbus", "curl",
              "iw", "wireless-tools", "wpasupplicant"
@@ -243,6 +243,9 @@ iface eth0 inet dhcp\
         # Fix missing display-manager.service
         self.run("chroot %s systemctl disable display-manager.service" %
                  self.tmp)
+
+        # Enable systemd ntp client
+        self.run("chroot %s timedatectl set-ntp true" % self.tmp)
 
         # Set up default root password
         while True:
