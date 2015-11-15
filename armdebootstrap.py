@@ -240,10 +240,6 @@ iface eth0 inet dhcp\
         self.run("sed -i'' 's/#PasswordAuth/PasswordAuth/' "
                  "%s/etc/ssh/sshd_config" % self.tmp)
 
-        # Fix missing display-manager.service
-        self.run("chroot %s systemctl disable display-manager.service" %
-                 self.tmp)
-
         # Enable systemd ntp client
         self.run("chroot %s timedatectl set-ntp true" % self.tmp)
 
