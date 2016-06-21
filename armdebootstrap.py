@@ -258,7 +258,7 @@ iface eth0 inet dhcp\
                  "%s/etc/ssh/sshd_config" % self.tmp)
 
         # Enable systemd ntp client
-        self.run("chroot %s timedatectl set-ntp true" % self.tmp)
+        self.run("chroot %s systemctl enable systemd-timesyncd.service" % self.tmp)
 
         # Set up default root password
         while True:
