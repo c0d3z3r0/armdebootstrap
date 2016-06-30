@@ -202,9 +202,8 @@ class ArmDeboostrap:
         self.run("fuser -k %s" % self.tmp, quit=0)
         self.unmountparts()
         os.rmdir(self.tmp)
-        self.lprint(co.Fore.GREEN +
-                    "OK, that's it. Put the sdcard into your device and power "
-                    "it up.\nThe root password is 'toor'." + co.Fore.RESET)
+        self.lprint(co.Fore.GREEN + "OK, that's it. Put the sdcard into your "
+                    "device and power it up." + co.Fore.RESET)
 
 
     def writeFile(self, file, content, append=False):
