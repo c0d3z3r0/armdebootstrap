@@ -281,9 +281,6 @@ deb-src http://security.debian.org/ jessie/updates main contrib non-free
 deb http://ftp.de.debian.org/debian jessie-updates main contrib non-free
 deb-src http://ftp.de.debian.org/debian jessie-updates main contrib non-free
 
-deb http://ftp.de.debian.org/debian jessie-proposed-updates main contrib non-free
-deb-src http://ftp.de.debian.org/debian jessie-proposed-updates main contrib non-free
-
 deb http://ftp.debian.org/debian/ jessie-backports main contrib non-free
 deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
         """)
