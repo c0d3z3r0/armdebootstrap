@@ -283,10 +283,12 @@ iface eth0 inet dhcp\
                  "%s/etc/dhcp/dhclient.conf" % self.tmp)
 
         # Enable SSH PasswordAuthentication and root login
-        self.run("sed -i'' 's/without-password/yes/' %s/etc/ssh/sshd_config" %
-                 self.tmp)
-        self.run("sed -i'' 's/#PasswordAuth/PasswordAuth/' "
-                 "%s/etc/ssh/sshd_config" % self.tmp)
+        # check if /etc/ssh/sshd_config exists
+        if os.path.isfile("%s/etc/ssh/sshd_config" % self.tmp):
+            self.run("sed -i'' 's/without-password/yes/' %s/etc/ssh/sshd_config" %
+                     self.tmp)
+            self.run("sed -i'' 's/#PasswordAuth/PasswordAuth/' "
+                     "%s/etc/ssh/sshd_config" % self.tmp)
 
         # Enable systemd ntp client
         self.run("chroot %s systemctl enable systemd-timesyncd.service" % self.tmp)
