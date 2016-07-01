@@ -59,14 +59,11 @@ class ArmDeboostrap:
              ("fuser", "psmisc"),
             ]
 
-        # Standard packages and additional packages
         self.packages = packages + \
-            ["aptitude", "apt-transport-https", "openssh-server",
-             "cpufrequtils", "cpufreqd", "tzdata", "htop",
-             "locales", "console-setup", "console-data", "vim", "psmisc",
-             "keyboard-configuration", "ca-certificates", "dbus", "curl",
-             "iw", "wireless-tools", "wpasupplicant"
-             ]
+            [
+             "console-setup",
+             "keyboard-configuration",
+            ]
 
 
     def logwrite(self, text):
@@ -186,19 +183,35 @@ class ArmDeboostrap:
 
 
     def debootstrap(self):
-        self.lprint("Install debian. First stage. "
-                    "This will take some minutes.")
-        self.run("cdebootstrap --arch=armhf -f standard --foreign jessie "
-                 "--include=%s %s" % (','.join(self.packages), self.tmp))
+        self.lprint("First stage. Install base system.")
+        self.run("cdebootstrap --arch=armhf -f minimal --foreign jessie "
+                 "--include=tasksel,whiptail %s" % self.tmp)
 
-        self.lprint("Second stage. Again, please wait some minutes.")
-        self.print_warn("You can safely ignore the perl and locale warnings.")
+        self.lprint("Second stage. This will take some minutes.")
         sh.copy2("/usr/bin/qemu-arm-static", "%s/usr/bin/qemu-arm-static" %
                  self.tmp)
         self.run("chroot %s /sbin/cdebootstrap-foreign" % self.tmp)
-        self.run("chroot %s dpkg-reconfigure locales console-setup "
-                 "console-data keyboard-configuration tzdata" %
-                 self.tmp, out=1)
+        self.run("chroot %s dpkg --purge cdebootstrap-helper-rc.d" % self.tmp)
+        self.run("DEBIAN_FRONTEND=noninteractive "
+                 "chroot %s dpkg --configure -a" % self.tmp)
+
+        # Add APT sources
+        self.writeFile('/etc/apt/sources.list', """\
+deb http://ftp.de.debian.org/debian/ jessie main contrib non-free
+deb-src http://ftp.de.debian.org/debian/ jessie main contrib non-free
+
+deb http://security.debian.org/ jessie/updates main contrib non-free
+deb-src http://security.debian.org/ jessie/updates main contrib non-free
+
+deb http://ftp.de.debian.org/debian jessie-updates main contrib non-free
+deb-src http://ftp.de.debian.org/debian jessie-updates main contrib non-free
+
+deb http://ftp.debian.org/debian/ jessie-backports main contrib non-free
+deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
+""")
+        self.run("chroot %s apt-get update" % self.tmp)
+        self.lprint("Run tasksel.")
+        self.run("chroot %s tasksel --new-install" % self.tmp, out=1)
 
 
     def cleanup(self):
@@ -218,8 +231,25 @@ class ArmDeboostrap:
         f.close()
 
 
+    def installPackages(self):
+        self.lprint("Install additional packages")
+        if self.packages:
+            self.run("DEBIAN_FRONTEND=noninteractive chroot %s "
+                     "aptitude -y install %s" %
+                     (self.tmp, ' '.join(self.packages)))
+            with open('%s/var/log/apt/history.log' % self.tmp, 'r') as f:
+                log = f.readlines()
+            lastinst = [l for l in log if 'Install: ' in l][-1]
+            lastpkgs = re.findall(r' ([^\s]+):[^\s]+ \(.*?\),?', lastinst)
+            self.run("chroot %s dpkg-reconfigure %s 2>/dev/null" %
+                     (self.tmp, ' '.join(lastpkgs)), out=1)
+
+
     def configure(self):
         self.lprint("Configure the system.")
+        reconfpkgs = ['locales', 'tzdata']
+        self.run("chroot %s dpkg-reconfigure %s 2>/dev/null" %
+                 (self.tmp, ' '.join(reconfpkgs)), out=1)
 
         # TODO: make more beautiful with string mask (spaces)
         # fstab
@@ -236,7 +266,6 @@ class ArmDeboostrap:
             self.writeFile('/etc/fstab', "/dev/mmcblk0p%s %s %s %s 0 %s" %
                            (str(self.partitions.index(p)+1), p['mount'], fs,
                             opt, str(parts.index(p)+1)), append=True)
-
 
         # Configure networking
         self.writeFile('/etc/network/interfaces', """\
@@ -272,28 +301,6 @@ iface eth0 inet dhcp\
         self.run("echo 'echo root:%s | chpasswd' | chroot %s" %
                  (rootpass, self.tmp))
 
-        # Add APT sources
-        self.writeFile('/etc/apt/sources.list', """\
-deb http://ftp.de.debian.org/debian/ jessie main contrib non-free
-deb-src http://ftp.de.debian.org/debian/ jessie main contrib non-free
-
-deb http://security.debian.org/ jessie/updates main contrib non-free
-deb-src http://security.debian.org/ jessie/updates main contrib non-free
-
-deb http://ftp.de.debian.org/debian jessie-updates main contrib non-free
-deb-src http://ftp.de.debian.org/debian jessie-updates main contrib non-free
-
-deb http://ftp.debian.org/debian/ jessie-backports main contrib non-free
-deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
-        """)
-
-
-    def update(self):
-        # Update & Upgrade
-        self.lprint("Update the system.")
-        self.run("chroot %s aptitude -y update" % self.tmp)
-        self.run("chroot %s aptitude -y upgrade" % self.tmp)
-
 
     def install(self):
         self.createparts()
@@ -301,7 +308,7 @@ deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
         self.mountparts()
         self.debootstrap()
         self.configure()
-        self.update()
+        self.installPackages()
 
 
     def init(self):
