@@ -42,12 +42,22 @@ class ArmDeboostrap:
 
 
     def __init__(self, name, hostname, sdcard, partitions,
-                 packages=[], debug=False):
+                 packages=[], dependencies=[], debug=False):
         self.name = name
         self.hostname = hostname
         self.sdcard = sdcard
         self.partitions = partitions
         self.debug = debug
+
+        self.dependencies = dependencies + \
+            [("mkfs.msdos", "dosfstools"),
+             ("cdebootstrap", "cdebootstrap"),
+             ("curl", "curl"),
+             ("fdisk", "fdisk"),
+             ("sed", "sed"),
+             ("qemu-arm-static", "qemu-user-static"),
+             ("fuser", "psmisc"),
+            ]
 
         # Standard packages and additional packages
         self.packages = packages + \
@@ -107,16 +117,8 @@ class ArmDeboostrap:
 
 
     def checkdep(self):
-        tools = [("mkfs.msdos", "dosfstools"),
-                 ("cdebootstrap", "cdebootstrap"),
-                 ("curl", "curl"),
-                 ("fdisk", "fdisk"),
-                 ("sed", "sed"),
-                 ("qemu-arm-static", "qemu-user-static"),
-                 ("fuser", "psmisc"),
-                 ]
         missing = []
-        for t in tools:
+        for t in self.dependencies:
             self.run("which %s" % t[0], quit=0) or missing.append(t[1])
         if missing:
             self.print_err("Missing dependencies: %s.\n"
