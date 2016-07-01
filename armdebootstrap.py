@@ -223,8 +223,6 @@ class ArmDeboostrap:
 
         # TODO: make more beautiful with string mask (spaces)
         # fstab
-        self.writeFile('/etc/fstab', "proc /proc proc defaults 0 0")
-
         parts = sorted(self.partitions, key=operator.itemgetter('mount'))
         for p in parts:
             if p['fs'] == 'msdos':
