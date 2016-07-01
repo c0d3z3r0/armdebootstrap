@@ -204,6 +204,7 @@ class ArmDeboostrap:
     def cleanup(self):
         self.lprint("Unmount and cleanup.")
         self.run("fuser -k -9 %s" % self.tmp, quit=0)
+        self.run("sync;sync;sync")
         self.unmountparts()
         os.rmdir(self.tmp)
         self.lprint(co.Fore.GREEN + "OK, that's it. Put the sdcard into your "
