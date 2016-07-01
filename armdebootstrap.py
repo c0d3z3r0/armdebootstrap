@@ -41,8 +41,8 @@ class ArmDeboostrap:
     debug = False
 
 
-    def __init__(self, name, hostname, sdcard, partitions, packages,
-                 debug=False):
+    def __init__(self, name, hostname, sdcard, partitions,
+                 packages=[], debug=False):
         self.name = name
         self.hostname = hostname
         self.sdcard = sdcard
