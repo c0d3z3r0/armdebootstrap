@@ -137,6 +137,8 @@ class ArmDeboostrap:
     # TODO: change fdisk to sfdisk or parted
     def createparts(self):
         self.lprint("Delete MBR and partition table and create a new one.")
+        self.run("fuser -k -9 %s" % self.tmp, quit=0)
+        self.run("umount -f %s*" % self.sdcard, quit=0)
         self.run('dd if=/dev/zero of=%s bs=$((0x200)) count=$((0x800))' %
                  self.sdcard)
         cmds = ['o']
