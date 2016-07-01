@@ -266,7 +266,7 @@ iface eth0 inet dhcp\
 
         # Set up default root password
         while True:
-            rootpass = getpass.getpass("Enter root password: ")
+            rootpass = getpass.getpass("Enter a password for root: ")
             if rootpass == getpass.getpass("Repeat: "):
                 break
             print("Passwords do not match. Try again.")
