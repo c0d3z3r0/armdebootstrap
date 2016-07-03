@@ -268,7 +268,7 @@ deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
                             opt, str(parts.index(p)+1)), append=True)
 
         # Configure networking
-        self.writeFile('/etc/network/interfaces', """\
+        self.writeFile('/etc/network/interfaces.d/eth0', """\
 auto eth0
 iface eth0 inet dhcp\
         """)
