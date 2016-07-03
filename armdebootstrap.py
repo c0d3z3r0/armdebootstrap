@@ -277,11 +277,6 @@ iface eth0 inet dhcp\
         self.writeFile('/etc/hostname', self.hostname)
         self.writeFile('/etc/hosts', '127.0.0.1 ' + self.hostname, append=True)
 
-        # Change DHCP timeout because we get stuck at boot if
-        # there is no network
-        self.run("sed -i'' 's/#timeout.*;/timeout 10;/' "
-                 "%s/etc/dhcp/dhclient.conf" % self.tmp)
-
         # Enable SSH PasswordAuthentication and root login
         # check if /etc/ssh/sshd_config exists
         if os.path.isfile("%s/etc/ssh/sshd_config" % self.tmp):
