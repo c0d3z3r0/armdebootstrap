@@ -136,8 +136,8 @@ class ArmDeboostrap:
         self.lprint("Delete MBR and partition table and create a new one.")
         self.run("fuser -k -9 %s" % self.tmp, quit=0)
         self.run("umount -f %s*" % self.sdcard, quit=0)
-        self.run('dd if=/dev/zero of=%s bs=$((0x200)) count=$((0x800))' %
-                 self.sdcard)
+        self.run('dd if=/dev/zero of=%s bs=$((0x200)) count=%s' %
+                 (self.sdcard, str(self.partitions[0]['start'] or 0x800)))
         cmds = ['o']
         for p in self.partitions:
             num = self.partitions.index(p)+1
