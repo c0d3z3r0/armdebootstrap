@@ -42,10 +42,11 @@ class ArmDeboostrap:
 
 
     def __init__(self, name, hostname, sdcard, partitions,
-                 packages=[], dependencies=[], debug=False):
+                 packages=[], dependencies=[], rootdevice="mmcblk0", debug=False):
         self.name = name
         self.hostname = hostname
         self.sdcard = sdcard
+        self.rootdevice = rootdevice
         self.partitions = partitions
         self.debug = debug
 
@@ -263,9 +264,10 @@ deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
                 opt = 'defaults,noatime'
             else:
                 opt = 'defaults'
-            self.writeFile('/etc/fstab', "/dev/mmcblk0p%s %s %s %s 0 %s" %
-                           (str(self.partitions.index(p)+1), p['mount'], fs,
-                            opt, str(parts.index(p)+1)), append=True)
+            self.writeFile('/etc/fstab', "/dev/%sp%s %s %s %s 0 %s" %
+                           (self.rootdevice, str(self.partitions.index(p)+1),
+                           p['mount'], fs, opt, str(parts.index(p)+1)),
+                           append=True)
 
         # Configure networking
         self.writeFile('/etc/network/interfaces.d/eth0', """\
