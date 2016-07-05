@@ -260,10 +260,7 @@ deb-src http://ftp.debian.org/debian/ jessie-backports main contrib non-free\
                 fs = 'vfat'
             else:
                 fs = p['fs']
-            if 'ext' in p['fs']:
-                opt = 'defaults,noatime'
-            else:
-                opt = 'defaults'
+            opt = 'defaults'
             self.writeFile('/etc/fstab', "/dev/%sp%s %s %s %s 0 %s" %
                            (self.rootdevice, str(self.partitions.index(p)+1),
                            p['mount'], fs, opt, str(parts.index(p)+1)),
